@@ -10,6 +10,7 @@ var heredoc = require('heredoc');
 // 5 回复音乐消息music
 // 6 回复图文消息news
 
+//将回复消息内容的对象转成xml的格式
 var tpl = heredoc(function*() {
     /*
     <xml>

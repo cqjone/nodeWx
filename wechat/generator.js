@@ -1,6 +1,6 @@
 'use strict'
 
-var sha1 = require('sha1');//加密模块
+var sha1 = require('sha1'); //加密模块
 
 var getRawBody = require('raw-body');
 
@@ -8,17 +8,17 @@ var Wechat = require('./wechat');
 
 var util = require('./util');
 
-module.exports = function(opts,handler){
+module.exports = function(opts, handler) {
 
-    var wechat = new Wechat(opts);//管理access_token和其他接口
+    var wechat = new Wechat(opts); //管理access_token和其他接口
 
-    return function *(next){
+    return function*(next) {
 
         var that = this;
         //打印GET请求携带的参数
         // console.log(this.query);
 
-        var token = opts.wx.token;//传入的配置对象
+        var token = opts.wx.token; //传入的配置对象
 
         //获取POST参数
         var signature = this.query.signature;
@@ -28,46 +28,46 @@ module.exports = function(opts,handler){
         var echostr = this.query.echostr;
 
         //字典排序，组合字符串
-        var str = [token,timestamp,nonce].sort().join('');
+        var str = [token, timestamp, nonce].sort().join('');
 
         //sha1加密
         var sha_str = sha1(str);
 
         //判断是否为微信服务请求
-        if(sha_str === signature){
+        if (sha_str === signature) {
 
-            if(this.request.method === 'GET'){
+            if (this.request.method === 'GET') {
                 // console.log(this);
                 this.body = echostr + '';
-                console.log('GET：echostr===='+echostr);
-            }else if(this.request.method === 'POST'){
+                console.log('GET：echostr====' + echostr);
+            } else if (this.request.method === 'POST') {
                 // console.log(this);
 
                 //保存微信服务器返回的数据
-                var data = yield getRawBody(this.req,{
-                    length:this.req.length,
-                    limit:'1mb',
-                    encoding:this.charset
+                var data = yield getRawBody(this.req, {
+                    length: this.req.length,
+                    limit: '1mb',
+                    encoding: this.charset
                 });
 
                 //打印xml数据
                 // console.log(data.toString());
 
                 //解析xml数据
-                var　content = yield util.parseXMLAsync(data);
+                var　 content = yield util.parseXMLAsync(data);
                 // console.log(content);
 
                 //格式化xml　
-                var　message = util.formatMessage(content.xml);
-                console.log(message);
+                var　 message = util.formatMessage(content.xml);
+                // console.log(message);
 
                 this.weixin = message;
 
-                yield handler.call(this,next);
+                yield handler.call(this, next);
 
                 wechat.reply.call(this);
             }
-        }else{
+        } else {
             this.body = "wrong";
             console.log('sha_str != signature : 请求不是来自微信服务器');
             return false;

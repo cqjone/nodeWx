@@ -5,6 +5,7 @@ var Promise = require('bluebird');
 
 var tpl = require('./tpl');
 
+//解析xml数据
 module.exports.parseXMLAsync = function(xml) {
     return new Promise(function(resolve, reject) {
         xml2js.parseString(xml, { trim: true }, function(err, content) {
@@ -17,7 +18,7 @@ module.exports.parseXMLAsync = function(xml) {
     })
 };
 
-
+//格式化解析完成的数据
 function formatMessage(result) {
     var message = {};
     if (typeof result === 'object') {
@@ -54,6 +55,7 @@ function formatMessage(result) {
 
 module.exports.formatMessage = formatMessage;
 
+//构建回复消息的对象
 module.exports.tpl = function(content, message) {
     var info = {};
     var type = 'text';
@@ -70,9 +72,6 @@ module.exports.tpl = function(content, message) {
     info.content = content;
 
     info.msgType = type;
-    // console.log('aaaaaaaaaaaaaaaaaaa');
-    // console.log(info);
-    // console.log('aaaaaaaaaaaaaaaaaaa');
     return tpl.compiled(info);
 
 }
