@@ -57,6 +57,8 @@ module.exports.formatMessage = formatMessage;
 
 //构建回复消息的对象
 module.exports.tpl = function(content, message) {
+    // console.log('回复时打印');
+    // console.log(content);
     var info = {};
     var type = 'text';
 
@@ -68,7 +70,7 @@ module.exports.tpl = function(content, message) {
     if (Array.isArray(content)) {
         type = 'news';
     }
-    type = content.type || type;
+    type = content.type ? content.type : type;
     info.content = content;
 
     info.msgType = type;

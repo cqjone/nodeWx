@@ -1,5 +1,35 @@
 'use strict'
-
+/**
+ * 微信接口api
+ * url_prefix:接口请求的url公共的部分
+ * api：接口请求的url（已拼接url_prefix，携带参数需自己拼接）
+ * Wechat：接口构造函数，每个接口都附加在它的prototype上
+ * 获取access_token并判断              Wechat.prototype.fetchAccessToken
+ * 判断access_token是否过期            Wechat.prototype.isValidAccessToken
+ * 更新access_token                   Wechat.prototype.updateAccessToken
+ * 上传临时&永久素材（图片，视频，音乐） Wechat.prototype.uploadMaterial
+ * 获取临时&永久素材                   Wechat.prototype.getMaterial
+ * 删除永久素材                        Wechat.prototype.delMaterialdetail
+ * 修改永久图文素材                    Wechat.prototype.updateMaterialdetail
+ * 获取各种永久素材的数量              Wechat.prototype.getMaterialNum
+ * 获取永久素材的详细信息              Wechat.prototype.getMaterialdetail
+ * 创建标签POST/json                  Wechat.prototype.creatTag
+ * 获取标签GET                        Wechat.prototype.getTags
+ * 编辑标签POST/json                  Wechat.prototype.updateTag
+ * 删除标签POST/json                  Wechat.prototype.deleteTag
+ * 获取标签下粉丝列表GET               Wechat.prototype.userTagGet
+ * 批量为用户打标签POST/json           Wechat.prototype.tagBatchtagging
+ * 批量为用户取消标签POST/json         Wechat.prototype.tagBatchuntagging
+ * 获取用户身上的标签列表POST/json     Wechat.prototype.getidlist 
+ * 设置用户备注名POST/json（暂时开放给微信认证的服务号）    Wechat.prototype.setUserName
+ * 获取用户基本信息（包括UnionID机制）GET                  Wechat.prototype.getUserInfo
+ * 批量获取用户基本信息POST/json                          Wechat.prototype.getUsersInfo
+ * 获取用户列表POST/json                                 Wechat.prototype.getUsersList
+ * 获取公众号的黑名单列表POST/json                        Wechat.prototype.tagBatchtagging
+ * 拉黑用户POST/json                                     Wechat.prototype.tagBatchuntagging
+ * 取消拉黑用户POST/json                                 Wechat.prototype.getidlist
+ * 
+ */
 var Promise = require('bluebird'); //Promise模块
 var _lodash = require('lodash');
 var request = Promise.promisify(require('request'));
@@ -33,9 +63,60 @@ var api = {
         // http请求方式: POST,https协议
         // https://api.weixin.qq.com/cgi-bin/material/get_material?access_token=ACCESS_TOKEN
         get: url_prefix + 'material/get_material?'
+    },
+    group: { //标签管理
+        //创建标签POST/json
+        creatTag: url_prefix + 'tags/create?access_token=',
+        //获取标签GET
+        getTags: url_prefix + 'tags/get?access_token=',
+        //编辑标签POST/json
+        updateTag: url_prefix + 'tags/update?access_token=',
+        //删除标签POST/json
+        deleteTag: url_prefix + 'tags/delete?access_token=',
+        //获取标签下粉丝列表GET
+        userTagGet: url_prefix + 'user/tag/get?access_token=',
 
+        //批量为用户打标签POST/json
+        tagBatchtagging: url_prefix + 'tags/members/batchtagging?access_token=',
+        //批量为用户取消标签POST/json
+        tagBatchuntagging: url_prefix + 'tags/members/batchuntagging?access_token=',
+        //获取用户身上的标签列表POST/json
+        getidlist: url_prefix + 'tags/getidlist?access_token='
+    },
+    users: { //用户管理
+        //设置用户备注名POST/json（暂时开放给微信认证的服务号）
+        setUserName: url_prefix + 'user/info/updateremark?access_token=',
+        //获取用户基本信息（包括UnionID机制）GET
+        getUserInfo: url_prefix + 'user/info?access_token=',
+        //批量获取用户基本信息POST/json
+        getUsersInfo: url_prefix + 'user/info/batchget?access_token=',
+        //获取用户列表POST/json
+        getUsersList: url_prefix + 'user/get?access_token=',
 
+        //获取公众号的黑名单列表POST/json
+        tagBatchtagging: url_prefix + 'members/getblacklist?access_token=',
+        //拉黑用户POST/json
+        tagBatchuntagging: url_prefix + 'tags/members/batchblacklist?access_token=',
+        //取消拉黑用户POST/json
+        getidlist: url_prefix + 'tags/members/batchunblacklist?access_token='
+    },
+    mass: {
+        //根据标签进行群发【订阅号与服务号认证后均可用】POST
+        tagMass: url_prefix + 'message/mass/sendall?access_token=',
+
+        //根据OpenID列表群发【订阅号不可用，服务号认证后可用】POST
+        openIdMass: url_prefix + 'message/mass/send?access_token=',
+
+        //删除群发【订阅号与服务号认证后均可用】POST
+        deleteMass: url_prefix + 'message/mass/delete?access_token=',
+
+        //预览接口【订阅号与服务号认证后均可用】POST
+        previewMass: url_prefix + 'message/mass/preview?access_token=',
+
+        //查询群发消息发送状态【订阅号与服务号认证后均可用】POST
+        statusMass: url_prefix + 'message/mass/get?access_token=',
     }
+
 
 }
 
@@ -44,7 +125,7 @@ var api = {
 function Wechat(opts) {
     var that = this;
     this.appID = opts.wx.appID;
-    this.appSecret = opts.wx.appID;
+    this.appSecret = opts.wx.appSecret;
 
     //获取access_token
     this.getAccessToken = opts.wx.getAccessToken;
@@ -59,49 +140,8 @@ function Wechat(opts) {
 
 }
 
-//判断access_token是否过期
-Wechat.prototype.isValidAccessToken = function(data) {
-    //判断access_token是否有效
-    if (!data || !data.access_token || !data.expires_in) { return false; }
-
-    //当前时间
-    var access_token = data.access_token;
-    var expires_in = data.expires_in;
-    var now = (new Date().getTime());
-
-    if (now < expires_in) {
-        return data;
-    } else {
-        return false;
-    }
-}
-
-//更新access_token
-Wechat.prototype.updateAccessToken = function() {
-    var appID = this.appID;
-    var appSecret = this.appSecret;
-
-    //https请求方式: GET
-    //https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
-
-    var url = 　api.accessToken + '&appid=' + appID + '&secret=' + appSecret;
-
-    return new Promise(function(resolve, reject) {
-        request({ url: url, json: true }).then(function(response) {
-            var data = response['body'];
-
-            var now = (new Date().getTime());
-            var expires_in = now + (data.expires_in - 20) * 1000;
-
-            data.expires_in = expires_in;
-
-            resolve(data);
-        })
-    })
-}
-
 //获取access_token并判断
-Wechat.prototype.fetchAccessToken = function(data) {
+Wechat.prototype.fetchAccessToken = function() {
     var that = this;
     if (this.access_token && this.expires_in) {
         if (this.isValidAccessToken(this)) {
@@ -117,7 +157,6 @@ Wechat.prototype.fetchAccessToken = function(data) {
             } catch (e) {
                 return that.updateAccessToken(); //更新access_token
             }
-
             //判断access_token是否过期
             if (that.isValidAccessToken(data)) {
                 return Promise.resolve(data);
@@ -136,6 +175,46 @@ Wechat.prototype.fetchAccessToken = function(data) {
 
             return Promise.resolve(data);
         });
+}
+
+//判断access_token是否过期
+Wechat.prototype.isValidAccessToken = function(data) {
+
+    //判断access_token是否有效
+    if (!data || !data.access_token || !data.expires_in) { return false; }
+
+    //当前时间
+    var access_token = data.access_token;
+    var expires_in = data.expires_in;
+    var now = (new Date().getTime());
+    if (now < expires_in) {
+        return data;
+    } else {
+        return false;
+    }
+}
+
+//更新access_token
+Wechat.prototype.updateAccessToken = function() {
+    var appID = this.appID;
+    var appSecret = this.appSecret;
+    //https请求方式: GET
+    //https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
+
+    var url = 　api.accessToken + '&appid=' + appID + '&secret=' + appSecret;
+
+    return new Promise(function(resolve, reject) {
+        request({ url: url, json: true }).then(function(response) {
+            var data = response['body'];
+
+            var now = (new Date().getTime());
+            var expires_in = now + (data.expires_in - 20) * 1000;
+
+            data.expires_in = expires_in;
+
+            resolve(data);
+        })
+    })
 }
 
 //上传临时&永久素材（图片，视频，音乐）
@@ -326,8 +405,6 @@ Wechat.prototype.updateMaterialdetail = function(mediaId, news) {
 }
 
 
-
-
 //获取各种永久素材的数量
 Wechat.prototype.getMaterialNum = function() {
     var that = this;
@@ -395,11 +472,532 @@ Wechat.prototype.getMaterialdetail = function(options) {
     })
 }
 
+// //创建标签POST/json
+// creatTag: url_prefix + 'tags/create?access_token=',
+Wechat.prototype.creatTag = function(name) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.creatTag + data.access_token;
+
+                var form = {
+                    "tag": {
+                        "name": name
+                    }
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('创建标签失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //获取标签GET
+// getTags: url_prefix + 'tags/get?access_token=',
+Wechat.prototype.getTags = function() {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.getTags + data.access_token;
+                request({ url: url, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取标签失败')
+                        }
+                        resolve(data);
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //编辑标签POST/json
+// updateTag: url_prefix + 'tags/update?access_token=',
+Wechat.prototype.updateTag = function(tagID, name) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.updateTag + data.access_token;
+
+                var form = {
+                    "tag": {
+                        "id": tagID,
+                        "name": name
+                    }
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('编辑标签失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //删除标签POST/json
+// deleteTag: url_prefix + 'tags/delete?access_token=',
+Wechat.prototype.deleteTag = function(tagID) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.deleteTag + data.access_token;
+
+                var form = {
+                    "tag": {
+                        "id": tagID
+                    }
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('删除标签失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //获取标签下粉丝列表GET
+// userTagGet: url_prefix + 'user/tag/get?access_token=',
+Wechat.prototype.userTagGet = function(tagID) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.userTagGet + data.access_token;
+
+                var form = {
+                    "tagid": tagID,
+                    "next_openid": ""
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取标签下粉丝列表失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+
+// //批量为用户打标签POST/json
+// tagBatchtagging: url_prefix + 'tags/members/batchtagging?access_token=',
+Wechat.prototype.tagBatchtagging = function(openIds, tagID) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.tagBatchtagging + data.access_token;
+
+                var form = {
+                    "openid_list": openIds,
+                    "tagid": tagID
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('批量为用户打标签失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //批量为用户取消标签POST/json
+// tagBatchuntagging: url_prefix + 'tags/members/batchuntagging?access_token=',
+Wechat.prototype.tagBatchuntagging = function(openIds, tagID) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.tagBatchuntagging + data.access_token;
+
+                var form = {
+                    "openid_list": openIds,
+                    "tagid": tagID
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('批量为用户取消标签失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// //获取用户身上的标签列表POST/json
+// getidlist: url_prefix + 'tags/getidlist?access_token='
+Wechat.prototype.getidlist = function(openIdD) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.group.getidlist + data.access_token;
+
+                var form = {
+                    "openid": openIdD
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取用户身上的标签列表失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+
+// setUserName: url_prefix + 'user/info/updateremark?access_token=',
+// //设置用户备注名POST/json（暂时开放给微信认证的服务号）
+Wechat.prototype.setUserName = function(openId, name) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.setUserName + data.access_token;
+
+                var form = {
+                    "openid": openIdD,
+                    "remark": name
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('设置用户备注名失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// getUserInfo: url_prefix + 'user/info?access_token=',
+// //获取用户基本信息（包括UnionID机制）GET
+Wechat.prototype.getUserInfo = function(openId) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.getUserInfo + data.access_token + '&openid=' + openId + '&lang=zh_CN';
+                request({ url: url, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取用户基本信息失败')
+                        }
+                        resolve(data);
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// getUsersInfo: url_prefix + 'user/info/batchget?access_token=',
+// //批量获取用户基本信息POST/json
+Wechat.prototype.getUsersInfo = function(userList) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.getUsersInfo + data.access_token;
+
+                var form = {
+                    "user_list": userList
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('批量获取用户基本信息失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// getUsersList: url_prefix + 'user/get?access_token=',
+// //获取用户列表POST/json
+Wechat.prototype.getUsersList = function(nextOpenId) {
+    var that = this;
+    var openid = nextOpenId ? nextOpenId : '';
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.getUsersList + data.access_token + '&next_openid=' + openid;
+                request({ url: url, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取用户列表失败')
+                        }
+                        resolve(data);
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// tagBatchtagging: url_prefix + 'members/getblacklist?access_token=',
+// //获取公众号的黑名单列表POST/json
+Wechat.prototype.tagBatchtagging = function(beginOpenid) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.tagBatchtagging + data.access_token;
+
+                var form = {
+                    "begin_openid": beginOpenid
+                }
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取公众号的黑名单列表失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// tagBatchuntagging: url_prefix + 'tags/members/batchblacklist?access_token=',
+// //拉黑用户POST/json
+Wechat.prototype.tagBatchuntagging = function(openedList) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.tagBatchuntagging + data.access_token;
+
+                var form = {
+                    "opened_list": openedList
+                };
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('拉黑用户失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+
+            })
+    })
+}
+
+// getidlist: url_prefix + 'tags/members/batchunblacklist?access_token='
+// //取消拉黑用户POST/json
+Wechat.prototype.getidlist = function(openedList) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.users.getidlist + data.access_token;
+
+                var form = {
+                    "opened_list": openedList
+                };
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('取消拉黑用户失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
+
+// tagMass: url_prefix + 'message/mass/sendall?access_token=',
+// //根据标签进行群发【订阅号与服务号认证后均可用】POST
+Wechat.prototype.tagMass = function(tagId, msgType, content) {
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.mass.tagMass + data.access_token;
+
+                var form = {
+                    "filter": {
+                        "is_to_all": false,
+                        "tag_id": tagId
+                    },
+                    "mpnews": {
+                        "media_id": "123dsdajkasd231jhksad"
+                    },
+                    "msgtype": msgType,
+                    "send_ignore_reprint": 0
+                };
+
+                if (msgType === 'mpnews') { //图文消息
+                    form.
+                } else if (msgType === 'text') { //文本
+
+                } else if (msgType === 'voice') { //语音/音频
+
+                } else if (msgType === 'image') { //图片
+
+                } else if (msgType === 'mpvideo') { //视频
+
+                }
+
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('取消拉黑用户失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
+
+// openIdMass: url_prefix + 'message/mass/send?access_token=',
+// //根据OpenID列表群发【订阅号不可用，服务号认证后可用】POST
+
+// deleteMass: url_prefix + 'message/mass/delete?access_token=',
+// //删除群发【订阅号与服务号认证后均可用】POST
+
+// previewMass: url_prefix + 'message/mass/preview?access_token=',
+// //预览接口【订阅号与服务号认证后均可用】POST
+
+// statusMass: url_prefix + 'message/mass/get?access_token=',
+// //查询群发消息发送状态【订阅号与服务号认证后均可用】POST
+
+
+
+
+
 
 
 
 //回复消息（返回拼接好的消息返回给微信服务器）
 Wechat.prototype.reply = function() {
+    // console.log('拼接消息之前');
+    // console.log(this);
     var content = this.body;
     var message = this.weixin;
 

@@ -15,8 +15,7 @@ module.exports = function(opts, handler) {
     return function*(next) {
 
         var that = this;
-        //打印GET请求携带的参数
-        // console.log(this.query);
+        console.log("本次请求的主机地址：" + this.header.host);
 
         var token = opts.wx.token; //传入的配置对象
 

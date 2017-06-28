@@ -5,38 +5,52 @@ var Wechat = require('./wechat/wechat');
 
 var wechat = new Wechat(config);
 
+function errcode(data) {
+    if (data.errcode) {
+        console.log('////////////////////////////////');
+        console.log('错误提示：' + config.errcode[data.errcode]);
+        console.log('////////////////////////////////');
+        return config.errcode[data.errcode];
+    } else {
+        return false;
+    }
+}
+
 //事件及消息的回复
 module.exports.reply = function*(next) {
     var message = this.weixin;
+    var reply = '';
 
-    if (message.MsgType === 'event') {
+    if (message.MsgType === 'event') { //事件推送
         if (message.Event === 'subscribe') { //订阅事件：用户未关注时，进行关注后的事件推送
             if (message.EventKey) {
                 console.log('通过扫描二维码关注，' + message.EventKey + '&&二维码的ticket:' + message.Ticket);
             } else {
                 console.log('普通关注！');
             }
-            this.body = '感谢关注！i love you';
+            reply = '感谢关注！i love you';
         } else if (message.Event === 'unsubscribe') { //取消订阅事件
             console.log('取消关注了!');
-            this.body = '';
+            reply = message.FromUserName + '取消关注了';
         } else if (message.Event === 'SCAN') { // 用户已关注时的事件推送
             console.log(' 用户已关注时的事件推送!');
-            this.body = '关注后扫描二维码：' + message.EventKey + '/' + message.Ticket;
-        } else if (message.Event === 'LOCATION') { //上传地理位置
-            console.log('上传地理位置!' + message.FromUserName + '当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision);
-            this.body = '';
-            //this.body = '你当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision;
+            reply = '关注后扫描二维码：' + message.EventKey + '/' + message.Ticket;
         } else if (message.Event === 'CLICK') { //点击了菜单
             console.log('点击了菜单!');
-            this.body = '你点击了菜单：' + message.EventKey;
+            reply = '你点击了菜单：' + message.EventKey;
         } else if (message.Event === 'VIEW') { //点击菜单跳转链接
-            console.log('点击了菜单!');
-            this.body = '你点击了菜单中的连接：' + message.EventKey;
+            console.log('你点击了菜单中的连接!');
+            reply = '你点击了菜单中的连接：' + message.EventKey;
+        } else if (message.Event === 'LOCATION') { //上传地理位置
+            console.log('上传地理位置!' + message.FromUserName + '当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision);
+            // reply = '你当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision;
         }
-    } else if (message.MsgType === 'text') {
+    } else if (message.MsgType === 'text') { //接收用户的文本消息并回复
+        console.log('////////////////////////////////');
+        console.log(message);
+        console.log('////////////////////////////////');
         var content = message.Content;
-        var reply = '额....你说的' + message.Content + '太复杂了';
+        reply = '额....你说的' + message.Content + '太复杂了';
         //回复（1-9文本）
         if (content === '1') { reply = ' 一帆风顺 ' } else if (content === '2') { reply = ' 二泉映月 ' } else if (content === '3') { reply = ' 三生有幸 ' } else if (content === '4') {
             reply = ' 四通八达 '
@@ -142,44 +156,47 @@ module.exports.reply = function*(next) {
 
         } else if (content === 'news0') { //永久图文
             var picData = yield wechat.uploadMaterial('image', __dirname + '/1.jpg', {});
-            reply = {
-                type: 'image',
-                mediaId: picData.media_id
-            }
-            console.log('0000000000000000')
-            console.log(picData);
-            console.log('0000000000000000')
-                // var media = {
-                //     "articles": [{
-                //         "title": '宇宙大爆炸',
-                //         "thumb_media_id": picData.media_id,
-                //         "author": 'joneco',
-                //         "digest": '黑洞的起源',
-                //         "show_cover_pic": 1,
-                //         "content": '两个超级黑洞的碰撞会发生什么？',
-                //         "content_source_url": 'http://baike.baidu.com/link?url=zrpDsQW6RmThdVlo24vXX2RxweoNLPtDeu8F1gCT9GY6Xj5Ds7n2gcOFU7H0x4TeZALVnb0XRV-gl6wdXFXo_waEQvpvlt6P0uJfKq9MWgm'
-                //     }]
-                // };
-                // var data = yield wechat.uploadMaterial('news', media, {});
-                // data = yield wechat.getMaterial(data.media_id, 'news', {});
-                // console.log('111111111')
-                // console.log(data);
-                // console.log('111111111')
+            // reply = {
+            //     type: 'image',
+            //     mediaId: picData.media_id
+            // }
 
-            // var items = data.news_item;
-            // var news = [];
+            var media = {
+                "articles": [{
+                    "title": '宇宙大爆炸',
+                    "thumb_media_id": picData.media_id,
+                    "author": 'joneco',
+                    "digest": '黑洞的起源',
+                    "show_cover_pic": 1,
+                    "content": '两个超级黑洞的碰撞会发生什么？',
+                    "content_source_url": 'http://baike.baidu.com/link?url=zrpDsQW6RmThdVlo24vXX2RxweoNLPtDeu8F1gCT9GY6Xj5Ds7n2gcOFU7H0x4TeZALVnb0XRV-gl6wdXFXo_waEQvpvlt6P0uJfKq9MWgm'
+                }, {
+                    "title": '宇宙大爆炸1',
+                    "thumb_media_id": picData.media_id,
+                    "author": 'joneco1',
+                    "digest": '黑洞的起源1',
+                    "show_cover_pic": 1,
+                    "content": '两个超级黑洞的碰撞会发生什么？',
+                    "content_source_url": 'http://baike.baidu.com/link?url=zrpDsQW6RmThdVlo24vXX2RxweoNLPtDeu8F1gCT9GY6Xj5Ds7n2gcOFU7H0x4TeZALVnb0XRV-gl6wdXFXo_waEQvpvlt6P0uJfKq9MWgm'
+                }]
+            };
+            var data = yield wechat.uploadMaterial('news', media, {});
+            data = yield wechat.getMaterial(data.media_id, 'news', {});
 
-            // items.forEach(function(item) {
-            //     news.push({
-            //         title: item.title,
-            //         description: item.digest,
-            //         picurl: picData.url,
-            //         url: item.url
-            //     })
-            // })
+            var items = data.news_item;
+            var news = [];
+
+            items.forEach(function(item) {
+                news.push({
+                    title: item.title,
+                    description: item.digest,
+                    picurl: picData.url,
+                    url: item.url
+                })
+            })
 
 
-            // reply = news;
+            reply = news;
 
         } else if (content === 'all') { //获取素材总数。
 
@@ -216,20 +233,94 @@ module.exports.reply = function*(next) {
 
             }
             var data = yield wechat.getMaterialdetail(option);
-
             console.log(data)
-            data.item.forEach(function(item) {
-                if (opoption.type === 'news') {
-                    reply += '\n' + item.content.news_item.title;
-                } else {
-                    reply += '\n' + item.name;
-                }
 
-            });
+            reply = errcode(data);
+            if (!reply) {
+                data.item.forEach(function(item) {
+                    reply += '\n' + item.media_id;
+                });
+                reply += '\n共' + data.item_count + '项';
+            }
+
+        } else if (new RegExp("^del[a-z]").test(content)) { //删除素材(每次最后一个)
+
+            var option = { "offset": 0, "count": 10 };
+            if (content.substr(3) === 'image') {
+                option.type = 'image';
+                reply = '删除图片：';
+            } else if (content.substr(3) === 'video') {
+                option.type = 'video';
+                reply = '删除视频：';
+            } else if (content.substr(3) === 'voice') {
+                option.type = 'voice';
+                reply = '删除语音：';
+            } else if (content.substr(3) === 'news') {
+                option.type = 'news';
+                reply = '删除图文：';
+            } else {
+                reply = '请输入del+想要想要素材的名称。如:allimage';
+            }
+            var data = yield wechat.getMaterialdetail(option);
+            var mediaId = data.item[data.item_count - 1].media_id
+            console.log(mediaId);
+            var req = yield wechat.delMaterialdetail(mediaId);
+            console.log(req);
+            reply += mediaId + '成功';
+
+        } else if (content === 'tag') { //标签管理。
+            //创建管理员标签
+            // var tag1 = yield wechat.creatTag('管理员');
+            // console.log('创建管理员标签');
+            // console.log(tag1);
+            //获取标签列表
+            var tags = yield wechat.getTags();
+            console.log('获取标签列表');
+            console.log(tags);
+            var fans = yield wechat.userTagGet(tags.tags[1].id);
+            console.log(fans);
+            //给自己打个标签
+            // var msg = yield wechat.tagBatchtagging([message.FromUserName], tag1.tag.id);
+            // console.log('给自己打个标签');
+            // console.log(msg);
+
+            reply = '用户标签管理';
+
+        } else if (content === 'me') { //查看自己的信息。
+            var data = yield wechat.getUserInfo(message.FromUserName);
+            var sex = data.sex == 1 ? '男' : '女';
+            console.log(data);
+            reply = '您的微信信息有：\n姓名：' + data.nickname + '\n性别：' + sex + '\n城市：' + data.province + '省-' + data.city + '市';
+
+        } else if (content === 'fans') { //查看粉丝列表。
+            var data = yield wechat.getUsersList();
+            console.log('/////////////////');
+            console.log(data);
+            console.log('/////////////////');
+            // var code = yield wechat.tagBatchtagging(data.data.openid, 100);
+            // console.log(code);
+            reply = '粉丝有：\n' + data.count + '个';
         }
-        this.body = reply;
-
+    } else if (message.MsgType === 'image') { //接收用户的图片消息并回复
+        console.log(message);
+        reply = '图片';
+    } else if (message.MsgType === 'voice') { //接收用户的语音消息并回复
+        console.log(message);
+        reply = '声音';
+    } else if (message.MsgType === 'video') { //接收用户的视频消息并回复
+        console.log(message);
+        reply = '视频';
+    } else if (message.MsgType === 'shortvideo') { //接收用户的小视频消息并回复
+        console.log(message);
+        reply = '小视频';
+    } else if (message.MsgType === 'link') { //接收用户的连接消息并回复
+        console.log(message);
+        reply = '链接';
+    } else if (message.MsgType === 'location') { //接收用户的地理位置消息并回复
+        console.log(message);
+        reply = '地理位置';
     }
+    this.body = reply;
     yield next;
 
 }
