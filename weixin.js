@@ -5,17 +5,6 @@ var Wechat = require('./wechat/wechat');
 
 var wechat = new Wechat(config);
 
-function errcode(data) {
-    if (data.errcode) {
-        console.log('////////////////////////////////');
-        console.log('错误提示：' + config.errcode[data.errcode]);
-        console.log('////////////////////////////////');
-        return config.errcode[data.errcode];
-    } else {
-        return false;
-    }
-}
-
 //事件及消息的回复
 module.exports.reply = function*(next) {
     var message = this.weixin;
@@ -32,6 +21,9 @@ module.exports.reply = function*(next) {
         } else if (message.Event === 'unsubscribe') { //取消订阅事件
             console.log('取消关注了!');
             reply = message.FromUserName + '取消关注了';
+        } else if (message.Event === 'LOCATION') { //上传地理位置
+            console.log('上传地理位置!' + message.FromUserName + '当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision);
+            // reply = '你当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision;
         } else if (message.Event === 'SCAN') { // 用户已关注时的事件推送
             console.log(' 用户已关注时的事件推送!');
             reply = '关注后扫描二维码：' + message.EventKey + '/' + message.Ticket;
@@ -41,16 +33,49 @@ module.exports.reply = function*(next) {
         } else if (message.Event === 'VIEW') { //点击菜单跳转链接
             console.log('你点击了菜单中的连接!');
             reply = '你点击了菜单中的连接：' + message.EventKey;
-        } else if (message.Event === 'LOCATION') { //上传地理位置
-            console.log('上传地理位置!' + message.FromUserName + '当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision);
-            // reply = '你当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision;
+        } else if (message.Event === 'scancode_push') { //扫码推事件的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.ScanCodeInfo;
+        } else if (message.Event === 'scancode_waitmsg') { //扫码推事件且弹出“消息接收中”提示框的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.ScanCodeInfo;
+        } else if (message.Event === 'pic_sysphoto') { //弹出系统拍照发图的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.SendPicsInfo;
+        } else if (message.Event === 'pic_photo_or_album') { //弹出拍照或者相册发图的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.SendPicsInfo;
+        } else if (message.Event === 'pic_weixin') { //弹出微信相册发图器的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.SendPicsInfo;
+        } else if (message.Event === 'location_select') { //弹出地理位置选择器的事件推送
+            console.log(message);
+            reply = '扫码推事件的事件推送：' + message.SendLocationInfo;
         }
+    } else if (message.MsgType === 'image') { //接收用户的图片消息并回复
+        console.log(message);
+        reply = '图片';
+    } else if (message.MsgType === 'voice') { //接收用户的语音消息并回复
+        console.log(message);
+        reply = '声音';
+    } else if (message.MsgType === 'video') { //接收用户的视频消息并回复
+        console.log(message);
+        reply = '视频';
+    } else if (message.MsgType === 'shortvideo') { //接收用户的小视频消息并回复
+        console.log(message);
+        reply = '小视频';
+    } else if (message.MsgType === 'link') { //接收用户的连接消息并回复
+        console.log(message);
+        reply = '链接';
+    } else if (message.MsgType === 'location') { //接收用户的地理位置消息并回复
+        console.log(message);
+        reply = '地理位置';
     } else if (message.MsgType === 'text') { //接收用户的文本消息并回复
         console.log('////////////////////////////////');
         console.log(message);
         console.log('////////////////////////////////');
         var content = message.Content;
-        reply = '额....你说的' + message.Content + '太复杂了';
+
         //回复（1-9文本）
         if (content === '1') { reply = ' 一帆风顺 ' } else if (content === '2') { reply = ' 二泉映月 ' } else if (content === '3') { reply = ' 三生有幸 ' } else if (content === '4') {
             reply = ' 四通八达 '
@@ -127,6 +152,9 @@ module.exports.reply = function*(next) {
                 type: 'video',
                 description: '{"title":"Re:CREATORS OP gravityWall forever","introduction":"作词：泽野弘之、Tielle\n作曲、编曲：泽野弘之\n歌：SawanoHiroyuki[nZk]:Tielle & Gemie"}'
             });
+            // console.log('/////////////////////');
+            // console.log(data);
+            // console.log('/////////////////////');
             reply = {
                 type: 'video',
                 mediaId: data.media_id,
@@ -233,15 +261,15 @@ module.exports.reply = function*(next) {
 
             }
             var data = yield wechat.getMaterialdetail(option);
+            console.log('获取素材');
             console.log(data)
 
-            reply = errcode(data);
-            if (!reply) {
-                data.item.forEach(function(item) {
-                    reply += '\n' + item.media_id;
-                });
-                reply += '\n共' + data.item_count + '项';
-            }
+
+            data.item.forEach(function(item) {
+                reply += '\n' + item.media_id;
+            });
+            reply += '\n共' + data.item_count + '项';
+
 
         } else if (new RegExp("^del[a-z]").test(content)) { //删除素材(每次最后一个)
 
@@ -300,25 +328,54 @@ module.exports.reply = function*(next) {
             // var code = yield wechat.tagBatchtagging(data.data.openid, 100);
             // console.log(code);
             reply = '粉丝有：\n' + data.count + '个';
+        } else if (content === 'sendall') { //群发
+            var tags = yield wechat.getTags();
+            console.log('获取标签列表');
+            console.log(tags);
+
+            // var data = yield wechat.uploadMaterial('video', __dirname + '/gravityWall1.mp4', {
+            //     type: 'video',
+            //     description: '{"title":"Re:CREATORS OP gravityWall forever","introduction":"作词：泽野弘之、Tielle\n作曲、编曲：泽野弘之\n歌：SawanoHiroyuki[nZk]:Tielle & Gemie"}'
+            // });
+
+            // console.log('上传视频');
+            // console.log(data);
+            // console.log('/////////////////');
+
+            // var data = yield wechat.uploadMaterial('image', __dirname + '/1.jpg', { type: 'image' });
+
+            var data1 = yield wechat.tagMass(tags.tags[1].id, 'text', '群发消息');
+            // console.log('群发');
+            // console.log(data1);
+            // console.log('/////////////////');
+            // var code = yield wechat.tagBatchtagging(data.data.openid, 100);
+            // console.log(code);
+            // reply = '粉丝有：\n' + data.count + '个';
+        } else if (content === '创建菜单') { //创菜单
+            var delall = yield wechat.delMenu();
+            var data = yield wechat.createMenu(config.menu);
+            console.log('////创建菜单////');
+            console.log(data);
+            console.log('/////////////////');
+        } else if (content === '删除菜单') { //删菜单
+            var data = yield wechat.delMenu();
+            console.log('////删除菜单////');
+            console.log(data);
+            console.log('/////////////////');
+        } else if (content === '创建菜单123') { //创个性化菜单
+            // var delall = yield wechat.delMenu();
+
+            var data = yield wechat.createPersonalMenu(config.personalMenu);
+            console.log('////创建菜单123////');
+            console.log(data);
+            console.log('/////////////////');
+        } else if (content === '删除菜单123') { //删个性化菜单
+            var menu = yield wechat.getMenu();
+            var data = yield wechat.delPersonalMenu(menu.menuid);
+            console.log('////删除菜单123////');
+            console.log(data);
+            console.log('/////////////////');
         }
-    } else if (message.MsgType === 'image') { //接收用户的图片消息并回复
-        console.log(message);
-        reply = '图片';
-    } else if (message.MsgType === 'voice') { //接收用户的语音消息并回复
-        console.log(message);
-        reply = '声音';
-    } else if (message.MsgType === 'video') { //接收用户的视频消息并回复
-        console.log(message);
-        reply = '视频';
-    } else if (message.MsgType === 'shortvideo') { //接收用户的小视频消息并回复
-        console.log(message);
-        reply = '小视频';
-    } else if (message.MsgType === 'link') { //接收用户的连接消息并回复
-        console.log(message);
-        reply = '链接';
-    } else if (message.MsgType === 'location') { //接收用户的地理位置消息并回复
-        console.log(message);
-        reply = '地理位置';
     }
     this.body = reply;
     yield next;

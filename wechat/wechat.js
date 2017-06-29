@@ -25,9 +25,18 @@
  * 获取用户基本信息（包括UnionID机制）GET                  Wechat.prototype.getUserInfo
  * 批量获取用户基本信息POST/json                          Wechat.prototype.getUsersInfo
  * 获取用户列表POST/json                                 Wechat.prototype.getUsersList
- * 获取公众号的黑名单列表POST/json                        Wechat.prototype.tagBatchtagging
- * 拉黑用户POST/json                                     Wechat.prototype.tagBatchuntagging
- * 取消拉黑用户POST/json                                 Wechat.prototype.getidlist
+ * 获取公众号的黑名单列表POST/json                        Wechat.prototype.getblacklist
+ * 拉黑用户POST/json                                     Wechat.prototype.batchblacklist
+ * 取消拉黑用户POST/json                                 Wechat.prototype.batchunblacklist
+ * 根据标签进行群发【订阅号与服务号认证后均可用】POST       Wechat.prototype.tagMass
+ * 根据OpenID列表群发【订阅号不可用，服务号认证后可用】POST Wechat.prototype.openIdMass
+ * 删除群发【订阅号与服务号认证后均可用】POST              Wechat.prototype.deleteMass
+ * 自定义菜单创建接口                                    Wechat.prototype.createMenu 
+ * 自定义菜单查询接口                                    Wechat.prototype.getMenu
+ * 自定义菜单删除接口                                    Wechat.prototype.delMenu
+ * 创建个性化菜单                                        Wechat.prototype.createPersonalMenu
+ * 删除个性化菜单                                        Wechat.prototype.delPersonalMenu
+ * 获取自定义菜单配置接口                                 Wechat.prototype.getconfig
  * 
  */
 var Promise = require('bluebird'); //Promise模块
@@ -94,11 +103,11 @@ var api = {
         getUsersList: url_prefix + 'user/get?access_token=',
 
         //获取公众号的黑名单列表POST/json
-        tagBatchtagging: url_prefix + 'members/getblacklist?access_token=',
+        getblacklist: url_prefix + 'members/getblacklist?access_token=',
         //拉黑用户POST/json
-        tagBatchuntagging: url_prefix + 'tags/members/batchblacklist?access_token=',
+        batchblacklist: url_prefix + 'tags/members/batchblacklist?access_token=',
         //取消拉黑用户POST/json
-        getidlist: url_prefix + 'tags/members/batchunblacklist?access_token='
+        batchunblacklist: url_prefix + 'tags/members/batchunblacklist?access_token='
     },
     mass: {
         //根据标签进行群发【订阅号与服务号认证后均可用】POST
@@ -115,10 +124,35 @@ var api = {
 
         //查询群发消息发送状态【订阅号与服务号认证后均可用】POST
         statusMass: url_prefix + 'message/mass/get?access_token=',
+    },
+    menu: {
+        //自定义菜单创建接口
+        create: url_prefix + 'menu/create?access_token=',
+        //自定义菜单查询接口
+        get: url_prefix + 'menu/get?access_token=',
+        //自定义菜单删除接口
+        del: url_prefix + 'menu/delete?access_token=',
+        //个性化菜单接口
+        personal: {
+            //创建个性化菜单
+            create: url_prefix + 'menu/addconditional?access_token=',
+            //删除个性化菜单
+            del: url_prefix + 'menu/delconditional?access_token=',
+        },
+        //获取自定义菜单配置接口
+        getconfig: url_prefix + 'get_current_selfmenu_info?access_token='
+    },
+    qrcode: { //二维码
+        //创建二维码ticket
+        create: url_prefix + 'qrcode/create?access_token=',
+        //TICKET记得进行UrlEncode 
+        show: url_prefix + 'showqrcode?ticket='
     }
 
 
 }
+
+
 
 //微信接口程序（消息管理、素材管理）
 //opts:微信配置的appID和appID及它们的获取保存方法
@@ -126,11 +160,14 @@ function Wechat(opts) {
     var that = this;
     this.appID = opts.wx.appID;
     this.appSecret = opts.wx.appSecret;
+    this.errCode = opts.errcode;
 
     //获取access_token
     this.getAccessToken = opts.wx.getAccessToken;
     //保存access_token
     this.saveAccessToken = opts.wx.saveAccessToken;
+    //报错提示
+    // this.errMsg = opts.wx.errMsg;
 
     //微信返回的access_token
     // {"access_token":"ACCESS_TOKEN","expires_in":7200}
@@ -140,10 +177,20 @@ function Wechat(opts) {
 
 }
 
+//错误编码
+Wechat.prototype.errMsg = function(err) {
+    if (err.errcode !== '') {
+        console.log('******************编码***********************');
+        console.log('**提示**：' + this.errCode[err.errcode]);
+        console.log('*********************************************');
+        // return;
+    }
+}
+
 //获取access_token并判断
 Wechat.prototype.fetchAccessToken = function() {
     var that = this;
-    if (this.access_token && this.expires_in) {
+    if (that.access_token && this.expires_in) {
         if (this.isValidAccessToken(this)) {
             return Promise.resolve(this);
         }
@@ -271,6 +318,7 @@ Wechat.prototype.uploadMaterial = function(type, material, permanent) {
                 }
                 request(options)
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         // console.log(response)
                         var redata = response['body'];
                         if (redata) {
@@ -283,6 +331,7 @@ Wechat.prototype.uploadMaterial = function(type, material, permanent) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
             })
 
@@ -323,6 +372,7 @@ Wechat.prototype.getMaterial = function(mediaId, type, permanent) {
                 }
                 if (type === 'video' || type === 'news') {
                     request(options).then(function(response) {
+                            that.errMsg(response['body']);
                             var redata = response['body'];
                             if (redata) {
                                 resolve(redata);
@@ -333,6 +383,7 @@ Wechat.prototype.getMaterial = function(mediaId, type, permanent) {
                         })
                         .catch(function(err) {
                             reject(err);
+
                         });
                 } else {
                     resolve(url);
@@ -358,6 +409,7 @@ Wechat.prototype.delMaterialdetail = function(mediaId) {
 
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -367,6 +419,7 @@ Wechat.prototype.delMaterialdetail = function(mediaId) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -389,6 +442,7 @@ Wechat.prototype.updateMaterialdetail = function(mediaId, news) {
 
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -398,6 +452,7 @@ Wechat.prototype.updateMaterialdetail = function(mediaId, news) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -419,7 +474,7 @@ Wechat.prototype.getMaterialNum = function() {
 
                 request({ url: url, json: true })
                     .then(function(response) {
-
+                        that.errMsg(response['body']);
                         // console.log(response)
                         var redata = response['body'];
                         if (redata) {
@@ -432,6 +487,7 @@ Wechat.prototype.getMaterialNum = function() {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -457,6 +513,7 @@ Wechat.prototype.getMaterialdetail = function(options) {
 
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -466,6 +523,7 @@ Wechat.prototype.getMaterialdetail = function(options) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -489,6 +547,7 @@ Wechat.prototype.creatTag = function(name) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -498,6 +557,7 @@ Wechat.prototype.creatTag = function(name) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -515,6 +575,7 @@ Wechat.prototype.getTags = function() {
                 var url = api.group.getTags + data.access_token;
                 request({ url: url, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -525,6 +586,7 @@ Wechat.prototype.getTags = function() {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -549,6 +611,7 @@ Wechat.prototype.updateTag = function(tagID, name) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -558,6 +621,7 @@ Wechat.prototype.updateTag = function(tagID, name) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -581,6 +645,7 @@ Wechat.prototype.deleteTag = function(tagID) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -590,6 +655,7 @@ Wechat.prototype.deleteTag = function(tagID) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -612,6 +678,7 @@ Wechat.prototype.userTagGet = function(tagID) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -621,6 +688,7 @@ Wechat.prototype.userTagGet = function(tagID) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -644,6 +712,7 @@ Wechat.prototype.tagBatchtagging = function(openIds, tagID) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -653,6 +722,7 @@ Wechat.prototype.tagBatchtagging = function(openIds, tagID) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -675,6 +745,7 @@ Wechat.prototype.tagBatchuntagging = function(openIds, tagID) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -684,6 +755,7 @@ Wechat.prototype.tagBatchuntagging = function(openIds, tagID) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -705,6 +777,7 @@ Wechat.prototype.getidlist = function(openIdD) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -714,6 +787,7 @@ Wechat.prototype.getidlist = function(openIdD) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -737,6 +811,7 @@ Wechat.prototype.setUserName = function(openId, name) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -746,6 +821,7 @@ Wechat.prototype.setUserName = function(openId, name) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -763,6 +839,7 @@ Wechat.prototype.getUserInfo = function(openId) {
                 var url = api.users.getUserInfo + data.access_token + '&openid=' + openId + '&lang=zh_CN';
                 request({ url: url, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -773,6 +850,7 @@ Wechat.prototype.getUserInfo = function(openId) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -794,6 +872,7 @@ Wechat.prototype.getUsersInfo = function(userList) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -803,6 +882,7 @@ Wechat.prototype.getUsersInfo = function(userList) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
@@ -820,6 +900,7 @@ Wechat.prototype.getUsersList = function(nextOpenId) {
                 var url = api.users.getUsersList + data.access_token + '&next_openid=' + openid;
                 request({ url: url, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -830,15 +911,16 @@ Wechat.prototype.getUsersList = function(nextOpenId) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
     })
 }
 
-// tagBatchtagging: url_prefix + 'members/getblacklist?access_token=',
 // //获取公众号的黑名单列表POST/json
-Wechat.prototype.tagBatchtagging = function(beginOpenid) {
+// getblacklist: url_prefix + 'members/getblacklist?access_token=',
+Wechat.prototype.getblacklist = function(beginOpenid) {
     var that = this;
 
     return new Promise(function(resolve, reject) {
@@ -851,6 +933,7 @@ Wechat.prototype.tagBatchtagging = function(beginOpenid) {
                 }
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -860,15 +943,16 @@ Wechat.prototype.tagBatchtagging = function(beginOpenid) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
     })
 }
 
-// tagBatchuntagging: url_prefix + 'tags/members/batchblacklist?access_token=',
 // //拉黑用户POST/json
-Wechat.prototype.tagBatchuntagging = function(openedList) {
+// batchblacklist: url_prefix + 'tags/members/batchblacklist?access_token=',
+Wechat.prototype.getblacklist = function(openedList) {
     var that = this;
 
     return new Promise(function(resolve, reject) {
@@ -881,6 +965,7 @@ Wechat.prototype.tagBatchuntagging = function(openedList) {
                 };
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -890,15 +975,16 @@ Wechat.prototype.tagBatchuntagging = function(openedList) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
 
             })
     })
 }
 
-// getidlist: url_prefix + 'tags/members/batchunblacklist?access_token='
 // //取消拉黑用户POST/json
-Wechat.prototype.getidlist = function(openedList) {
+// batchunblacklist: url_prefix + 'tags/members/batchunblacklist?access_token='
+Wechat.prototype.batchunblacklist = function(openedList) {
     var that = this;
 
     return new Promise(function(resolve, reject) {
@@ -911,6 +997,7 @@ Wechat.prototype.getidlist = function(openedList) {
                 };
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
@@ -920,6 +1007,7 @@ Wechat.prototype.getidlist = function(openedList) {
                     })
                     .catch(function(err) {
                         reject(err);
+
                     })
             })
     })
@@ -928,44 +1016,248 @@ Wechat.prototype.getidlist = function(openedList) {
 // tagMass: url_prefix + 'message/mass/sendall?access_token=',
 // //根据标签进行群发【订阅号与服务号认证后均可用】POST
 Wechat.prototype.tagMass = function(tagId, msgType, content) {
+    if (tagId == '') { console.log('请填写标签ID'); }
+    if (msgType == '') { console.log('请填写消息类型'); }
+    if (content == '') { console.log('请填写消息内容'); }
+
     var that = this;
 
     return new Promise(function(resolve, reject) {
         that.fetchAccessToken()
             .then(function(data) {
-                var url = api.mass.tagMass + data.access_token;
-
                 var form = {
                     "filter": {
                         "is_to_all": false,
                         "tag_id": tagId
-                    },
-                    "mpnews": {
-                        "media_id": "123dsdajkasd231jhksad"
                     },
                     "msgtype": msgType,
                     "send_ignore_reprint": 0
                 };
 
                 if (msgType === 'mpnews') { //图文消息
-                    form.
+                    form['mpnews'] = { "media_id": content };
                 } else if (msgType === 'text') { //文本
-
+                    form['text'] = { "content": content };
                 } else if (msgType === 'voice') { //语音/音频
-
+                    form['voice'] = { "media_id": content }
                 } else if (msgType === 'image') { //图片
-
+                    form['image'] = { "media_id": content }
                 } else if (msgType === 'mpvideo') { //视频
+                    var mediaId = '';
 
+                    var url1 = 'https://api.weixin.qq.com/cgi-bin/media/uploadvideo?access_token=' + data.access_token;
+                    request({
+                            method: 'POST',
+                            url: url1,
+                            body: {
+                                "media_id": content,
+                                "title": "Re:CREATORS OP gravityWall forever",
+                                "description": "作词：泽野弘之、Tielle\n作曲、编曲：泽野弘之\n歌：SawanoHiroyuki[nZk]:Tielle & Gemie"
+                            },
+                            json: true
+                        })
+                        .then(function(response) {
+                            that.errMsg(response['body']);
+                            var redata = response['body'];
+                            console.log('新的视频ID');
+                            console.log(redata);
+                            if (redata) {
+                                mediaId = redata.media_id;
+                            } else {
+                                throw new Error('获取视频ID失败')
+                            }
+                        })
+                        .catch(function(err) {
+                            reject(err);
+
+                        })
+
+                    form['mpvideo'] = { "media_id": mediaId }
+                } else if (msgType === 'wxcard') { //卡券
+                    form['wxcard'] = { "media_id": content }
                 }
-
+                var url = api.mass.tagMass + data.access_token;
                 request({ method: 'POST', url: url, body: form, json: true })
                     .then(function(response) {
+                        that.errMsg(response['body']);
                         var redata = response['body'];
                         if (redata) {
                             resolve(redata);
                         } else {
-                            throw new Error('取消拉黑用户失败')
+                            throw new Error('群发失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+
+                    })
+            })
+    })
+}
+
+// openIdMass: url_prefix + 'message/mass/send?access_token=',
+// //根据OpenID列表群发【订阅号不可用，服务号认证后可用】POST
+Wechat.prototype.openIdMass = function(openedList, msgType, content) {
+    if (openedList == '' && openedList.length == 0) { console.log('请填写用户ID'); }
+    if (msgType == '') { console.log('请填写消息类型'); }
+    if (content == '') { console.log('请填写消息内容'); }
+
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var form = {
+                    "touser": openedList,
+                    "msgtype": msgType,
+                    "send_ignore_reprint": 0
+                };
+
+                if (msgType === 'mpnews') { //图文消息
+                    form['mpnews'] = { "media_id": content };
+                } else if (msgType === 'text') { //文本
+                    form['text'] = { "content": content };
+                } else if (msgType === 'voice') { //语音/音频
+                    form['voice'] = { "media_id": content }
+                } else if (msgType === 'image') { //图片
+                    form['image'] = { "media_id": content }
+                } else if (msgType === 'mpvideo') { //视频
+                    var mediaId = '';
+
+                    var url1 = 'https://api.weixin.qq.com/cgi-bin/media/uploadvideo?access_token=' + data.access_token;
+                    request({
+                            method: 'POST',
+                            url: url1,
+                            body: {
+                                "media_id": content,
+                                "title": "Re:CREATORS OP gravityWall forever",
+                                "description": "作词：泽野弘之、Tielle\n作曲、编曲：泽野弘之\n歌：SawanoHiroyuki[nZk]:Tielle & Gemie"
+                            },
+                            json: true
+                        })
+                        .then(function(response) {
+                            that.errMsg(response['body']);
+                            var redata = response['body'];
+                            console.log('新的视频ID');
+                            console.log(redata);
+                            if (redata) {
+                                mediaId = redata.media_id;
+                            } else {
+                                throw new Error('获取视频ID失败')
+                            }
+                        })
+                        .catch(function(err) {
+                            reject(err);
+
+                        })
+
+                    form['mpvideo'] = { "media_id": mediaId }
+                } else if (msgType === 'wxcard') { //卡券
+                    form['wxcard'] = { "media_id": content }
+                }
+                var url = api.mass.openIdMass + data.access_token;
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('群发失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+
+                    })
+            })
+    })
+}
+
+// deleteMass: url_prefix + 'message/mass/delete?access_token=',
+// //删除群发【订阅号与服务号认证后均可用】POST
+Wechat.prototype.deleteMass = function(msgId, articleIdx) {
+    if (msgId == '') { console.log('请填写删除消息的ID'); }
+
+    var that = this;
+
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var form = {
+                    "msg_id": msgId,
+                    "article_idx": articleIdx ? articleIdx : 1
+                };
+
+                var url = api.mass.deleteMass + data.access_token;
+                request({ method: 'POST', url: url, body: form, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('群发失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+
+                    })
+            })
+    })
+}
+
+//这两个接口先放放
+// previewMass: url_prefix + 'message/mass/preview?access_token=',
+// //预览接口【订阅号与服务号认证后均可用】POST
+
+// statusMass: url_prefix + 'message/mass/get?access_token=',
+// //查询群发消息发送状态【订阅号与服务号认证后均可用】POST
+
+
+// create: url_prefix + 'menu/create?access_token=',
+// //自定义菜单创建接口
+Wechat.prototype.createMenu = function(menu) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.create + data.access_token;
+                request({ method: 'POST', url: url, body: menu, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('创建自定义菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+
+                    })
+            })
+    })
+}
+
+// get: url_prefix + 'menu/get?access_token=',
+// //自定义菜单查询接口
+Wechat.prototype.getMenu = function() {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.get + data.access_token;
+                request({ url: url, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('获取自定义菜单失败')
                         }
                     })
                     .catch(function(err) {
@@ -975,18 +1267,109 @@ Wechat.prototype.tagMass = function(tagId, msgType, content) {
     })
 }
 
-// openIdMass: url_prefix + 'message/mass/send?access_token=',
-// //根据OpenID列表群发【订阅号不可用，服务号认证后可用】POST
 
-// deleteMass: url_prefix + 'message/mass/delete?access_token=',
-// //删除群发【订阅号与服务号认证后均可用】POST
+// del: url_prefix + 'menu/delete?access_token=',
+// //自定义菜单删除接口
+Wechat.prototype.delMenu = function() {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.del + data.access_token;
+                request({ url: url, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('删除自定义菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
 
-// previewMass: url_prefix + 'message/mass/preview?access_token=',
-// //预览接口【订阅号与服务号认证后均可用】POST
+// //个性化菜单接口
 
-// statusMass: url_prefix + 'message/mass/get?access_token=',
-// //查询群发消息发送状态【订阅号与服务号认证后均可用】POST
+//create: 'menu/addconditional?access_token=',
+////创建个性化菜单
+Wechat.prototype.createPersonalMenu = function(menu) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.personal.create + data.access_token;
+                request({ method: 'POST', url: url, body: menu, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('创建个性化菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
 
+                    })
+            })
+    })
+}
+
+//del: 'menu/delconditional?access_token=',
+////删除个性化菜单
+Wechat.prototype.delPersonalMenu = function(menuId) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.personal.del + data.access_token;
+                request({ method: 'POST', url: url, body: { "menuid": menuId }, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('删除个性化菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
+
+// getconfig: 'get_current_selfmenu_info?access_token='
+// //获取自定义菜单配置接口
+Wechat.prototype.getconfig = function(useId) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.menu.getconfig + data.access_token;
+                request({ method: 'POST', url: url, body: { "menuid": useId }, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('删除个性化菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
 
 
 
