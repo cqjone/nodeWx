@@ -391,6 +391,55 @@ module.exports.reply = function*(next) {
             var req = yield wechat.createQrcode(qr);
 
             reply = req;
+        } else if (content === '短二维码') { //长二维码连接转短连接
+            var short = {
+                "action": "long2short",
+                "long_url": "https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=gQHc8DwAAAAAAAAAAS5odHRwOi8vd2VpeGluLnFxLmNvbS9xLzAyNjJ1Z2wtZGljOTExbUd0WjFwMXUAAgQO0VVZAwScjCcA"
+            };
+            var shortUrl = yield wechat.QrcodeShort(short);
+            console.log('////删除菜单123////');
+            console.log(shortUrl);
+            console.log('/////////////////');
+            reply = shortUrl.short_url;
+        } else { //语义理解
+            var semanticData = {
+                "query": message.Content,
+                "city": "上海",
+                "category": "MOVIE",
+                "appid": config.wx.appID,
+                "uid": message.FromUserName
+            }
+
+            // if (new RegExp("电影").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // } else if (new RegExp("^del[a-z]").test(content)) {
+            //     semanticData.category = "";
+            // }
+            var req = yield wechat.semantic(semanticData);
+            console.log('******************semanticData***********************');
+            console.log(semanticData);
+            console.log('*********************************************');
+            console.log('******************编码***********************');
+            console.log(req);
+            console.log('*********************************************');
+            reply = JSON.stringify(req);
+
         }
     }
     this.body = reply;

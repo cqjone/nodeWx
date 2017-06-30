@@ -38,6 +38,10 @@
  * 删除个性化菜单                                        Wechat.prototype.delPersonalMenu
  * 获取自定义菜单配置接口                                 Wechat.prototype.getconfig
  * 
+ * 创建+获取二维码 ticket
+ * 通过ticket换取二维码TICKET记得进行UrlEncode           Wechat.prototype.createQrcode
+ * 
+ * 二维码长链接转短链接接口                              Wechat.prototype.QrcodeShort
  */
 var Promise = require('bluebird'); //Promise模块
 var _lodash = require('lodash');
@@ -146,7 +150,9 @@ var api = {
         //创建二维码ticket
         create: url_prefix + 'qrcode/create?access_token=',
         //通过ticket换取二维码TICKET记得进行UrlEncode 
-        show: url_prefix + 'showqrcode?ticket='
+        show: 'https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=',
+        // 长链接转短链接接口
+        short: url_prefix + 'shorturl?access_token='
     }
 
 
@@ -179,7 +185,7 @@ function Wechat(opts) {
 
 //错误编码
 Wechat.prototype.errMsg = function(err) {
-    if (err.errcode !== '') {
+    if (err.errcode) {
         console.log('******************编码***********************');
         console.log('**提示**：' + this.errCode[err.errcode]);
         console.log('*********************************************');
@@ -1372,9 +1378,8 @@ Wechat.prototype.getconfig = function(useId) {
 }
 
 // create: url_prefix + 'qrcode/create?access_token=',
-//创建+获取二维码 ticket
 // show: url_prefix + 'showqrcode?ticket='
-// 通过ticket换取二维码TICKET记得进行UrlEncode 
+//创建+获取二维码 ticket 通过ticket换取二维码TICKET记得进行UrlEncode 
 Wechat.prototype.createQrcode = function(qr) {
     var that = this;
     return new Promise(function(resolve, reject) {
@@ -1384,17 +1389,11 @@ Wechat.prototype.createQrcode = function(qr) {
                 request({ method: 'POST', url: url, body: qr, json: true })
                     .then(function(response) {
                         that.errMsg(response['body']);
-                        console.log('******************返回***********************');
-                        console.log(response['body']);
-                        console.log(api.qrcode.show + encodeURI(response['body'].ticket));
-                        console.log('*********************************************');
-
                         var redata = api.qrcode.show + encodeURI(response['body'].ticket);
-
                         if (redata) {
                             resolve(redata);
                         } else {
-                            throw new Error('ticket获取失败')
+                            throw new Error('二维码获取失败')
                         }
                     })
                     .catch(function(err) {
@@ -1404,9 +1403,55 @@ Wechat.prototype.createQrcode = function(qr) {
     })
 }
 
+// short: url_prefix + 'shorturl?access_token='
+// 长链接转短链接接口
+Wechat.prototype.QrcodeShort = function(short) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.qrcode.short + data.access_token;
+                request({ method: 'POST', url: url, body: short, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('转换失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
 
-
-
+//https://api.weixin.qq.com/semantic/semproxy/search?access_token=YOUR_ACCESS_TOKEN
+//语义理解post
+Wechat.prototype.semantic = function(semanticData) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = 'https://api.weixin.qq.com/semantic/semproxy/search?access_token=' + data.access_token;
+                request({ method: 'POST', url: url, body: semanticData, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        var redata = response['body'];
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('语义理解失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
 
 
 
