@@ -26,7 +26,7 @@ module.exports.reply = function*(next) {
             // reply = '你当前的位置是：' + message.Latitude + '/' + message.Longitude + '/' + message.Precision;
         } else if (message.Event === 'SCAN') { // 用户已关注时的事件推送
             console.log(' 用户已关注时的事件推送!');
-            reply = '关注后扫描二维码：' + message.EventKey + '/' + message.Ticket;
+            reply = '关注后扫描二维码：' + message.EventKey;
         } else if (message.Event === 'CLICK') { //点击了菜单
             console.log('点击了菜单!');
             reply = '你点击了菜单：' + message.EventKey;
@@ -375,6 +375,22 @@ module.exports.reply = function*(next) {
             console.log('////删除菜单123////');
             console.log(data);
             console.log('/////////////////');
+        } else if (content === '二维码0') { //临时二维码
+            var qr = { "expire_seconds": 2591900, "action_name": "QR_SCENE", "action_info": { "scene": { "scene_id": 100 } } };
+            var req = yield wechat.createQrcode(qr);
+
+            reply = req;
+
+        } else if (content === '二维码1') { //永久二维码scene_id
+            var qr = { "action_name": "QR_LIMIT_SCENE", "action_info": { "scene": { "scene_id": 111 } } };
+            var req = yield wechat.createQrcode(qr);
+
+            reply = req;
+        } else if (content === '二维码2') { //永久二维码scene_str
+            var qr = { "action_name": "QR_LIMIT_STR_SCENE", "action_info": { "scene": { "scene_str": "111" } } };
+            var req = yield wechat.createQrcode(qr);
+
+            reply = req;
         }
     }
     this.body = reply;

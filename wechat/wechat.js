@@ -145,7 +145,7 @@ var api = {
     qrcode: { //二维码
         //创建二维码ticket
         create: url_prefix + 'qrcode/create?access_token=',
-        //TICKET记得进行UrlEncode 
+        //通过ticket换取二维码TICKET记得进行UrlEncode 
         show: url_prefix + 'showqrcode?ticket='
     }
 
@@ -1362,6 +1362,39 @@ Wechat.prototype.getconfig = function(useId) {
                             resolve(redata);
                         } else {
                             throw new Error('删除个性化菜单失败')
+                        }
+                    })
+                    .catch(function(err) {
+                        reject(err);
+                    })
+            })
+    })
+}
+
+// create: url_prefix + 'qrcode/create?access_token=',
+//创建+获取二维码 ticket
+// show: url_prefix + 'showqrcode?ticket='
+// 通过ticket换取二维码TICKET记得进行UrlEncode 
+Wechat.prototype.createQrcode = function(qr) {
+    var that = this;
+    return new Promise(function(resolve, reject) {
+        that.fetchAccessToken()
+            .then(function(data) {
+                var url = api.qrcode.create + data.access_token;
+                request({ method: 'POST', url: url, body: qr, json: true })
+                    .then(function(response) {
+                        that.errMsg(response['body']);
+                        console.log('******************返回***********************');
+                        console.log(response['body']);
+                        console.log(api.qrcode.show + encodeURI(response['body'].ticket));
+                        console.log('*********************************************');
+
+                        var redata = api.qrcode.show + encodeURI(response['body'].ticket);
+
+                        if (redata) {
+                            resolve(redata);
+                        } else {
+                            throw new Error('ticket获取失败')
                         }
                     })
                     .catch(function(err) {
