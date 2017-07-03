@@ -3,8 +3,10 @@
 var path = require('path');
 
 var util = require('./libs/util');
-
+//全局票据access_token
 var wechat_file = path.join(__dirname, './config/wechat.txt');
+//js-SDK票据access_token
+var wechat_ticket = path.join(__dirname, './config/ticket.txt');
 
 //token用于接入微信，而appID和appSecret主要用于获取access_token
 var config = {
@@ -28,6 +30,16 @@ var config = {
             data = JSON.stringify(data); //json转字符串
             return util.writeFileAsync(wechat_file, data);
         },
+        //获取access_token
+        getTicket: function() {
+            return util.readFileAsync(wechat_ticket);
+        },
+        //保存access_token
+        saveTicket: function(data) {
+            data = JSON.stringify(data); //json转字符串
+            return util.writeFileAsync(wechat_ticket, data);
+        }
+
         //错误编码
         // errMsg: function(err) {
         //     if (err.errcode) {
@@ -39,7 +51,7 @@ var config = {
         // }
 
     },
-    menu0: {
+    menu: {
         "button": [{
                 "type": "click",
                 "name": "今日歌曲",
@@ -68,7 +80,7 @@ var config = {
             }
         ]
     },
-    menu: {
+    menu0: {
         "button": [
             // {
             //     "name": "扫码",

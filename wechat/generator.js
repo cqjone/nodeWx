@@ -15,7 +15,9 @@ module.exports = function(opts, handler) {
     return function*(next) {
 
         var that = this;
-        console.log("本次请求的主机地址：" + this.header.host);
+        // console.log(this);
+        // console.log("本次请求的主机地址：" + this.header.host);
+        // console.log("本次请求的url地址：" + this.href);
 
         var token = opts.wx.token; //传入的配置对象
 
@@ -68,8 +70,11 @@ module.exports = function(opts, handler) {
             }
         } else {
             this.body = "wrong";
-            console.log('sha_str != signature : 请求不是来自微信服务器');
+            // console.log('sha_str != signature : 请求不是来自微信服务器');
             return false;
         }
+        //  else if (this.header.host === '') {
+
+        // } 
     }
 }

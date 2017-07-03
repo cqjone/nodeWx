@@ -31,7 +31,7 @@ module.exports.reply = function*(next) {
             console.log('点击了菜单!');
             reply = '你点击了菜单：' + message.EventKey;
         } else if (message.Event === 'VIEW') { //点击菜单跳转链接
-            console.log('你点击了菜单中的连接!');
+            // console.log(message);
             reply = '你点击了菜单中的连接：' + message.EventKey;
         } else if (message.Event === 'scancode_push') { //扫码推事件的事件推送
             console.log(message);

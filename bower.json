@@ -1,0 +1,20 @@
+{
+  "name": "nodeWx",
+  "homepage": "https://github.com/cqjone/nodeWx",
+  "authors": [
+    "cqjone <cq201445@163.com>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "zepto": "^1.2.0"
+  }
+}
