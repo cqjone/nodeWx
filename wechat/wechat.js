@@ -4,23 +4,23 @@
  * url_prefix:接口请求的url公共的部分
  * api：接口请求的url（已拼接url_prefix，携带参数需自己拼接）
  * Wechat：接口构造函数，每个接口都附加在它的prototype上
- * 获取access_token并判断              Wechat.prototype.fetchAccessToken
- * 判断access_token是否过期            Wechat.prototype.isValidAccessToken
- * 更新access_token                   Wechat.prototype.updateAccessToken
- * 上传临时&永久素材（图片，视频，音乐） Wechat.prototype.uploadMaterial
- * 获取临时&永久素材                   Wechat.prototype.getMaterial
- * 删除永久素材                        Wechat.prototype.delMaterialdetail
- * 修改永久图文素材                    Wechat.prototype.updateMaterialdetail
- * 获取各种永久素材的数量              Wechat.prototype.getMaterialNum
- * 获取永久素材的详细信息              Wechat.prototype.getMaterialdetail
- * 创建标签POST/json                  Wechat.prototype.creatTag
- * 获取标签GET                        Wechat.prototype.getTags
- * 编辑标签POST/json                  Wechat.prototype.updateTag
- * 删除标签POST/json                  Wechat.prototype.deleteTag
- * 获取标签下粉丝列表GET               Wechat.prototype.userTagGet
- * 批量为用户打标签POST/json           Wechat.prototype.tagBatchtagging
- * 批量为用户取消标签POST/json         Wechat.prototype.tagBatchuntagging
- * 获取用户身上的标签列表POST/json     Wechat.prototype.getidlist 
+ * 获取access_token并判断                               Wechat.prototype.fetchAccessToken
+ * 判断access_token是否过期                             Wechat.prototype.isValidAccessToken
+ * 更新access_token                                    Wechat.prototype.updateAccessToken
+ * 上传临时&永久素材（图片，视频，音乐）                  Wechat.prototype.uploadMaterial
+ * 获取临时&永久素材                                    Wechat.prototype.getMaterial
+ * 删除永久素材                                         Wechat.prototype.delMaterialdetail
+ * 修改永久图文素材                                     Wechat.prototype.updateMaterialdetail
+ * 获取各种永久素材的数量                                Wechat.prototype.getMaterialNum
+ * 获取永久素材的详细信息                                Wechat.prototype.getMaterialdetail
+ * 创建标签POST/json                                    Wechat.prototype.creatTag
+ * 获取标签GET                                          Wechat.prototype.getTags
+ * 编辑标签POST/json                                    Wechat.prototype.updateTag
+ * 删除标签POST/json                                    Wechat.prototype.deleteTag
+ * 获取标签下粉丝列表GET                                 Wechat.prototype.userTagGet
+ * 批量为用户打标签POST/json                             Wechat.prototype.tagBatchtagging
+ * 批量为用户取消标签POST/json                           Wechat.prototype.tagBatchuntagging
+ * 获取用户身上的标签列表POST/json                        Wechat.prototype.getidlist 
  * 设置用户备注名POST/json（暂时开放给微信认证的服务号）    Wechat.prototype.setUserName
  * 获取用户基本信息（包括UnionID机制）GET                  Wechat.prototype.getUserInfo
  * 批量获取用户基本信息POST/json                          Wechat.prototype.getUsersInfo
@@ -53,6 +53,7 @@ var url_prefix = "https://api.weixin.qq.com/cgi-bin/"; //微信所有请求的ur
 
 var api = {
     accessToken: url_prefix + "token?grant_type=client_credential", //获取access_token地址
+    ticket: url_prefix + 'ticket/getticket?access_token=', //SDK票据
     temporary: { //临时素材地址
         //上传临时 https://api.weixin.qq.com/cgi-bin/media/upload?access_token=ACCESS_TOKEN&type=TYPE
         upload: url_prefix + "media/upload?",
@@ -156,6 +157,8 @@ var api = {
     }
 
 
+
+
 }
 
 
@@ -174,6 +177,11 @@ function Wechat(opts) {
     this.saveAccessToken = opts.wx.saveAccessToken;
     //报错提示
     // this.errMsg = opts.wx.errMsg;
+
+    //获取ticket
+    this.getTicket = opts.wx.getTicket;
+    //保存ticket
+    this.saveTicket = opts.wx.saveTicket;
 
     //微信返回的access_token
     // {"access_token":"ACCESS_TOKEN","expires_in":7200}
@@ -196,13 +204,8 @@ Wechat.prototype.errMsg = function(err) {
 //获取access_token并判断
 Wechat.prototype.fetchAccessToken = function() {
     var that = this;
-    if (that.access_token && this.expires_in) {
-        if (this.isValidAccessToken(this)) {
-            return Promise.resolve(this);
-        }
-    }
 
-    this.getAccessToken()
+    return this.getAccessToken()
         .then(function(data) {
             try {
                 //json格式化
@@ -213,19 +216,12 @@ Wechat.prototype.fetchAccessToken = function() {
             //判断access_token是否过期
             if (that.isValidAccessToken(data)) {
                 return Promise.resolve(data);
-                // return new Promise(function(resolve, reject){
-                //     resolve(data);
-                // })
             } else {
                 return that.updateAccessToken(); //更新access_token
             }
         })
         .then(function(data) { //合法结果
-            that.access_token = data.access_token;
-            that.expires_in = data.expires_in;
-
             that.saveAccessToken(data); //保存
-
             return Promise.resolve(data);
         });
 }
@@ -236,9 +232,8 @@ Wechat.prototype.isValidAccessToken = function(data) {
     //判断access_token是否有效
     if (!data || !data.access_token || !data.expires_in) { return false; }
 
-    //当前时间
-    var access_token = data.access_token;
     var expires_in = data.expires_in;
+    //当前时间
     var now = (new Date().getTime());
     if (now < expires_in) {
         return data;
@@ -254,20 +249,94 @@ Wechat.prototype.updateAccessToken = function() {
     //https请求方式: GET
     //https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=APPID&secret=APPSECRET
 
-    var url = 　api.accessToken + '&appid=' + appID + '&secret=' + appSecret;
+    var url = api.accessToken + '&appid=' + appID + '&secret=' + appSecret;
 
     return new Promise(function(resolve, reject) {
         request({ url: url, json: true }).then(function(response) {
             var data = response['body'];
 
             var now = (new Date().getTime());
-            var expires_in = now + (data.expires_in - 20) * 1000;
+            var expires_in = now + (data.expires_in - 10) * 1000;
 
             data.expires_in = expires_in;
 
             resolve(data);
         })
     })
+}
+
+
+
+//获取ticket并判断Ticket
+Wechat.prototype.fetchTicket = function(access_token) {
+    var that = this;
+    return this.getTicket()
+        .then(function(data) {
+            try {
+                //json格式化
+                data = JSON.parse(data);
+            } catch (e) {
+                return that.updateTicket(access_token); //更新ticket
+            }
+            //判断ticket是否过期
+            if (that.isValidTicket(data)) {
+                return Promise.resolve(data);
+            } else {
+                return that.updateTicket(access_token); //更新ticket
+            }
+        })
+        .then(function(data) { //合法结果
+            that.saveTicket(data); //保存
+            return Promise.resolve(data);
+        });
+}
+
+//判断ticket是否过期
+Wechat.prototype.isValidTicket = function(data) {
+
+    //判断ticket是否有效
+    if (!data || !data.ticket || !data.expires_in) { return false; }
+
+    var expires_in = data.expires_in;
+    //当前时间
+    var now = (new Date().getTime());
+    if (now < expires_in) {
+        return data;
+    } else {
+        return false;
+    }
+}
+
+//更新ticket
+Wechat.prototype.updateTicket = function(access_token) {
+    var that = this;
+    var url = api.ticket + access_token + '&type=jsapi';
+    return new Promise(function(resolve, reject) {
+        request({ url: url, json: true }).then(function(response) {
+            var data = response['body'];
+
+            var now = (new Date().getTime());
+            var expires_in = now + (data.expires_in - 10) * 1000;
+
+            data.expires_in = expires_in;
+
+            resolve(data);
+        })
+    })
+}
+
+
+//回复消息接口（返回拼接好的消息返回给微信服务器）
+Wechat.prototype.reply = function() {
+
+    var content = this.body;
+    var message = this.weixin;
+
+    var xml = util.tpl(content, message);
+
+    this.status = 200;
+    this.type = 'application/xml';
+    this.body = xml;
 }
 
 //上传临时&永久素材（图片，视频，音乐）
@@ -401,6 +470,7 @@ Wechat.prototype.getMaterial = function(mediaId, type, permanent) {
 }
 
 // 删除永久素材
+//mediaId:媒体文件ID
 Wechat.prototype.delMaterialdetail = function(mediaId) {
     var that = this;
     var form = { media_id: mediaId };
@@ -433,6 +503,7 @@ Wechat.prototype.delMaterialdetail = function(mediaId) {
 }
 
 // 修改永久图文素材
+//mediaId:媒体文件ID
 Wechat.prototype.updateMaterialdetail = function(mediaId, news) {
     var that = this;
     var form = { media_id: mediaId };
@@ -1455,19 +1526,5 @@ Wechat.prototype.semantic = function(semanticData) {
 
 
 
-//回复消息（返回拼接好的消息返回给微信服务器）
-Wechat.prototype.reply = function() {
-    // console.log('拼接消息之前');
-    // console.log(this);
-    var content = this.body;
-    var message = this.weixin;
-
-    var xml = util.tpl(content, message);
-    // console.log(xml);
-    // console.log(content);
-    this.status = 200;
-    this.type = 'application/xml';
-    this.body = xml;
-}
 
 module.exports = Wechat;
