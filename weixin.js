@@ -412,27 +412,9 @@ module.exports.reply = function*(next) {
 
             // if (new RegExp("电影").test(content)) {
             //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
-            // } else if (new RegExp("^del[a-z]").test(content)) {
-            //     semanticData.category = "";
             // }
             var req = yield wechat.semantic(semanticData);
-            console.log('******************semanticData***********************');
+            console.log('*****************semanticData****************');
             console.log(semanticData);
             console.log('*********************************************');
             console.log('******************编码***********************');
