@@ -73,8 +73,6 @@ module.exports = function(opts, handler) {
             // console.log('sha_str != signature : 请求不是来自微信服务器');
             return false;
         }
-        //  else if (this.header.host === '') {
 
-        // } 
     }
 }
