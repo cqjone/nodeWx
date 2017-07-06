@@ -413,14 +413,14 @@ module.exports.reply = function*(next) {
             // if (new RegExp("电影").test(content)) {
             //     semanticData.category = "";
             // }
-            var req = yield wechat.semantic(semanticData);
-            console.log('*****************semanticData****************');
-            console.log(semanticData);
-            console.log('*********************************************');
-            console.log('******************编码***********************');
-            console.log(req);
-            console.log('*********************************************');
-            reply = JSON.stringify(req);
+            // var req = yield wechat.semantic(semanticData);
+            // console.log('*****************semanticData****************');
+            // console.log(semanticData);
+            // console.log('*********************************************');
+            // console.log('******************编码***********************');
+            // console.log(req);
+            // console.log('*********************************************');
+            // reply = JSON.stringify(req);
 
         }
     }

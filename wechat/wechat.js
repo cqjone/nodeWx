@@ -176,7 +176,7 @@ function Wechat(opts) {
     //保存access_token
     this.saveAccessToken = opts.wx.saveAccessToken;
     //报错提示
-    // this.errMsg = opts.wx.errMsg;
+    this.errMsg = opts.wx.errMsg;
 
     //获取ticket
     this.getTicket = opts.wx.getTicket;
@@ -191,15 +191,15 @@ function Wechat(opts) {
 
 }
 
-//错误编码
-Wechat.prototype.errMsg = function(err) {
-    if (err.errcode) {
-        console.log('******************编码***********************');
-        console.log('**提示**：' + this.errCode[err.errcode]);
-        console.log('*********************************************');
-        // return;
-    }
-}
+// //错误编码
+// Wechat.prototype.errMsg = function(err) {
+//     if (err.errcode) {
+//         console.log('******************编码***********************');
+//         console.log('**提示**：' + this.errCode[err.errcode]);
+//         console.log('*********************************************');
+//         // return;
+//     }
+// }
 
 //获取access_token并判断
 Wechat.prototype.fetchAccessToken = function() {

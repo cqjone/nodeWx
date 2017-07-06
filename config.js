@@ -38,17 +38,17 @@ var config = {
         saveTicket: function(data) {
             data = JSON.stringify(data); //json转字符串
             return util.writeFileAsync(wechat_ticket, data);
-        }
+        },
 
         //错误编码
-        // errMsg: function(err) {
-        //     if (err.errcode) {
-        //         console.log('////////////////////////////////');
-        //         console.log('错误提示：' + config.errcode[err.errcode]);
-        //         console.log('////////////////////////////////');
-        //         // return;
-        //     }
-        // }
+        errMsg: function(err) {
+            // if (err.errcode) {
+            console.log('******************编码***********************');
+            console.log('**提示**：' + config.errcode[err.errcode]);
+            console.log('*********************************************');
+            // return;
+            // }
+        }
 
     },
     menu: {

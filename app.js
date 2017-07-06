@@ -2,10 +2,6 @@
 
 var koa = require('koa'); //koa服务
 
-var wechat_g = require('./wechat/generator');
-
-var wechat = require('./wechat/wechat');
-
 var path = require('path');
 
 var ejs = require('ejs');
@@ -13,6 +9,10 @@ var ejs = require('ejs');
 var heredoc = require('heredoc');
 
 var crypto = require('crypto');
+
+var wechat_g = require('./wechat/generator');
+
+var wechat = require('./wechat/wechat');
 
 var util = require('./libs/util');
 
