@@ -166,7 +166,6 @@ var api = {
 //微信接口程序（消息管理、素材管理）
 //opts:微信配置的appID和appID及它们的获取保存方法
 function Wechat(opts) {
-    var that = this;
     this.appID = opts.wx.appID;
     this.appSecret = opts.wx.appSecret;
     this.errCode = opts.errcode;
